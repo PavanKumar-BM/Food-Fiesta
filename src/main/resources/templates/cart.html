@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Shopping Cart | Food Fiesta</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        .order-type-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .order-type-card {
+            position: relative;
+            cursor: pointer;
+        }
+
+        .order-type-card input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .order-type-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            padding: 24px 16px;
+            border: 2px solid var(--outline-variant);
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            background: white;
+            text-align: center;
+        }
+
+        .order-type-label i {
+            font-size: 2rem;
+            color: var(--on-surface-variant);
+            transition: color 0.25s ease;
+        }
+
+        .order-type-label span {
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--on-surface);
+        }
+
+        .order-type-label small {
+            font-size: 0.75rem;
+            color: var(--on-surface-variant);
+        }
+
+        .order-type-card input[type="radio"]:checked + .order-type-label {
+            border-color: var(--primary);
+            background: #fff5f0;
+        }
+
+        .order-type-card input[type="radio"]:checked + .order-type-label i {
+            color: var(--primary);
+        }
+
+        .table-number-section {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .table-number-section.show {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 600px) {
+            .order-type-cards { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body style="background: #f8fafc; display: flex; flex-direction: column; min-height: 100vh;">
+    <!-- Simple Navbar -->
+    <nav class="navbar" style="position: sticky; top: 0; z-index: 100;">
+        <a href="/dashboard" class="nav-logo" style="text-decoration: none;">
+            <i class="fa-solid fa-arrow-left"></i> <span style="margin-left: 8px; font-size: 1.2rem;">Back to Menu</span>
+        </a>
+        <div class="nav-links">
+            <a href="/logout" class="btn btn-outline" style="padding: 8px 20px;">Sign Out</a>
+        </div>
+    </nav>
+
+    <div class="auth-wrapper" style="flex: 1; padding: 60px 5%; max-width: 1100px; margin: 0 auto; width: 100%;">
+        <div class="animate-up">
+            <h2 style="font-size: 2rem; margin-bottom: 24px;">Your Cart</h2>
+            
+            <div th:if="${cart == null or cart.isEmpty()}" style="text-align: center; padding: 60px 20px; background: white; border-radius: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
+                <i class="fa-solid fa-basket-shopping" style="font-size: 4rem; color: var(--outline); margin-bottom: 20px;"></i>
+                <h3>Your cart is empty</h3>
+                <p style="color: var(--on-surface-variant); margin-top: 8px; margin-bottom: 24px;">Looks like you haven't added anything delicious yet!</p>
+                <a href="/dashboard" class="btn btn-primary">Browse Menu</a>
+            </div>
+
+            <div th:if="${cart != null and !cart.isEmpty()}">
+                <!-- Cart Items Table -->
+                <div style="background: white; border-radius: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); overflow: hidden; margin-bottom: 24px;">
+                    <table class="order-table" style="margin-bottom: 0;">
+                        <thead>
+                            <tr>
+                                <th>ITEM</th>
+                                <th>PRICE</th>
+                                <th>QTY</th>
+                                <th>TOTAL</th>
+                                <th>ACTION</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="item : ${cart}">
+                                <td style="font-weight: 600;" th:text="${item.product.pname}">Product Name</td>
+                                <td th:text="'₹' + ${item.product.pprice}">₹0.00</td>
+                                <td th:text="${item.quantity}">1</td>
+                                <td style="font-weight: 700; color: var(--primary);" th:text="'₹' + ${item.getTotalPrice()}">₹0.00</td>
+                                <td>
+                                    <a th:href="@{'/cart/remove/' + ${item.product.pid}}" class="btn btn-outline" style="padding: 6px 12px; color: #ef4444; border-color: #ef4444;">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Checkout Form -->
+                <form th:action="@{/cart/checkout}" method="post" id="checkoutForm">
+                    <!-- Order Type Selection -->
+                    <div class="search-card" style="margin-bottom: 20px;">
+                        <h3 style="margin-bottom: 8px;"><i class="fa-solid fa-location-dot" style="color: var(--primary);"></i> How would you like your order?</h3>
+                        <p style="color: var(--on-surface-variant); font-size: 0.875rem; margin-bottom: 20px;">Select one of the options below</p>
+
+                        <div class="order-type-cards" style="grid-template-columns: repeat(2, 1fr);">
+                            <div class="order-type-card">
+                                <input type="radio" id="dineIn" name="orderType" value="Dine-In" onchange="handleOrderTypeChange(this)">
+                                <label for="dineIn" class="order-type-label">
+                                    <i class="fa-solid fa-utensils"></i>
+                                    <span>Dine-In</span>
+                                    <small>Eat at the restaurant</small>
+                                </label>
+                            </div>
+                            <div class="order-type-card">
+                                <input type="radio" id="takeaway" name="orderType" value="Takeaway" checked onchange="handleOrderTypeChange(this)">
+                                <label for="takeaway" class="order-type-label" style="border-color: var(--primary); background: #fff5f0;">
+                                    <i class="fa-solid fa-bag-shopping" style="color: var(--primary);"></i>
+                                    <span>Takeaway</span>
+                                    <small>Pick up at counter</small>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Table Number Field (only for Dine-In) -->
+                        <div id="tableNumberSection" class="table-number-section">
+                            <label style="font-size: 0.875rem; font-weight: 700; color: var(--on-surface-variant); display: block; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">
+                                <i class="fa-solid fa-chair"></i> Table Number
+                            </label>
+                            <input type="text" name="tableNumber" id="tableNumber" class="input-field" style="margin-top: 0; max-width: 300px;" placeholder="e.g. Table 5, Table A3...">
+                            <p style="font-size: 0.8rem; color: var(--on-surface-variant); margin-top: 8px;">Ask the waiter for your table number if you're unsure.</p>
+                        </div>
+                    </div>
+
+                    <!-- Grand Total & Checkout -->
+                    <div class="search-card" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+                        <div>
+                            <span style="font-size: 0.875rem; color: var(--on-surface-variant); font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Grand Total</span>
+                            <div style="font-size: 2rem; font-weight: 800; color: var(--on-surface);" th:text="'₹' + ${total}">₹0.00</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="padding: 16px 32px; font-size: 1.1rem;">
+                            Confirm Order <i class="fa-solid fa-check" style="margin-left: 8px;"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function handleOrderTypeChange(radio) {
+            const tableSection = document.getElementById('tableNumberSection');
+            if (radio.value === 'Dine-In') {
+                tableSection.classList.add('show');
+                document.getElementById('tableNumber').required = true;
+            } else {
+                tableSection.classList.remove('show');
+                document.getElementById('tableNumber').required = false;
+                document.getElementById('tableNumber').value = '';
+            }
+        }
+
+        // Validate table number for dine-in before submit
+        document.getElementById('checkoutForm').addEventListener('submit', function(e) {
+            const orderType = document.querySelector('input[name="orderType"]:checked').value;
+            const tableNumber = document.getElementById('tableNumber').value.trim();
+            if (orderType === 'Dine-In' && !tableNumber) {
+                e.preventDefault();
+                alert('Please enter your Table Number for Dine-In orders.');
+            }
+        });
+    </script>
+</body>
+</html>

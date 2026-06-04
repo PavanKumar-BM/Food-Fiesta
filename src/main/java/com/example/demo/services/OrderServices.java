@@ -41,4 +41,11 @@ public class OrderServices
 	 return  this.orderRepository.findOrdersByUser(user);
 	}
 	
+	public Orders getOrder(int id) {
+		Optional<Orders> optional = this.orderRepository.findById(id);
+		if(optional.isPresent()){
+			return optional.get();
+		}
+		return null;
+	}
 }

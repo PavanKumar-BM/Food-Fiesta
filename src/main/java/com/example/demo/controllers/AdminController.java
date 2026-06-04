@@ -19,6 +19,7 @@ import com.example.demo.count.*;
 import com.example.demo.entities.*;
 import com.example.demo.loginCredentials.*;
 import com.example.demo.services.*;
+import com.example.demo.repositories.TableReservationRepository;
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,6 +35,8 @@ public class AdminController {
 	private ProductServices productServices;	
 	@Autowired
 	private OrderServices orderServices;
+	@Autowired
+	private TableReservationRepository tableReservationRepository;
 
 // Removed instance variables email and user to prevent data leakage in singleton controller
 
@@ -74,9 +77,117 @@ public class AdminController {
 			return "redirect:/userLogin";
 		}
 		List<Orders> orders = this.orderServices.getOrdersForUser(loggedInUser);
+		List<TableReservation> reservations = this.tableReservationRepository.findByUser(loggedInUser);
 		model.addAttribute("orders", orders);
+		model.addAttribute("reservations", reservations);
 		model.addAttribute("name", loggedInUser.getUname());
+		model.addAttribute("products", this.productServices.getAllProducts());
 		return "BuyProduct";
+	}
+
+	@PostMapping("/reserveTable")
+	@Operation(summary = "Reserve a table", description = "Submit a table reservation request")
+	public String reserveTable(@RequestParam("reservationDate") String date, @RequestParam("reservationTime") String time, @RequestParam("partySize") int partySize, jakarta.servlet.http.HttpSession session) {
+		User loggedInUser = (User) session.getAttribute("loggedInUser");
+		if (loggedInUser == null) {
+			return "redirect:/userLogin";
+		}
+		TableReservation reservation = new TableReservation(loggedInUser, date, time, partySize, "PENDING");
+		tableReservationRepository.save(reservation);
+		return "redirect:/dashboard";
+	}
+
+	@PostMapping("/cart/add")
+	@Operation(summary = "Add to Cart", description = "Adds a product to the session cart")
+	public String addToCart(@RequestParam("productId") int productId, @RequestParam("quantity") int quantity, jakarta.servlet.http.HttpSession session) {
+		User loggedInUser = (User) session.getAttribute("loggedInUser");
+		if (loggedInUser == null) {
+			return "redirect:/userLogin";
+		}
+		Product product = this.productServices.getProduct(productId);
+		if (product != null) {
+			List<CartItem> cart = (List<CartItem>) session.getAttribute("cart");
+			if (cart == null) {
+				cart = new ArrayList<>();
+			}
+			boolean exists = false;
+			for (CartItem item : cart) {
+				if (item.getProduct().getPid() == productId) {
+					item.setQuantity(item.getQuantity() + quantity);
+					exists = true;
+					break;
+				}
+			}
+			if (!exists) {
+				cart.add(new CartItem(product, quantity));
+			}
+			session.setAttribute("cart", cart);
+		}
+		return "redirect:/dashboard";
+	}
+
+	@GetMapping("/cart")
+	@Operation(summary = "View Cart", description = "Displays the shopping cart")
+	public String viewCart(Model model, jakarta.servlet.http.HttpSession session) {
+		User loggedInUser = (User) session.getAttribute("loggedInUser");
+		if (loggedInUser == null) {
+			return "redirect:/userLogin";
+		}
+		List<CartItem> cart = (List<CartItem>) session.getAttribute("cart");
+		if (cart == null) {
+			cart = new ArrayList<>();
+		}
+		double total = 0;
+		for (CartItem item : cart) {
+			total += item.getTotalPrice();
+		}
+		model.addAttribute("cart", cart);
+		model.addAttribute("total", total);
+		return "Cart";
+	}
+
+	@GetMapping("/cart/remove/{productId}")
+	@Operation(summary = "Remove from Cart", description = "Removes a product from the session cart")
+	public String removeFromCart(@PathVariable("productId") int productId, jakarta.servlet.http.HttpSession session) {
+		List<CartItem> cart = (List<CartItem>) session.getAttribute("cart");
+		if (cart != null) {
+			cart.removeIf(item -> item.getProduct().getPid() == productId);
+			session.setAttribute("cart", cart);
+		}
+		return "redirect:/cart";
+	}
+
+	@PostMapping("/cart/checkout")
+	@Operation(summary = "Checkout Cart", description = "Processes the cart items into individual orders")
+	public String checkoutCart(@RequestParam(value = "orderType", defaultValue = "Delivery") String orderType, @RequestParam(value = "tableNumber", required = false) String tableNumber, jakarta.servlet.http.HttpSession session, Model model) {
+		User loggedInUser = (User) session.getAttribute("loggedInUser");
+		if (loggedInUser == null) {
+			return "redirect:/userLogin";
+		}
+		List<CartItem> cart = (List<CartItem>) session.getAttribute("cart");
+		double totalAmount = 0;
+		if (cart != null && !cart.isEmpty()) {
+			for (CartItem item : cart) {
+				Orders order = new Orders();
+				order.setoName(item.getProduct().getPname());
+				order.setoPrice(item.getProduct().getPprice());
+				order.setoQuantity(item.getQuantity());
+				double amount = item.getProduct().getPprice() * item.getQuantity();
+				totalAmount += amount;
+				order.setTotalAmmout(amount);
+				order.setOrderDate(new Date());
+				order.setUser(loggedInUser);
+				order.setStatus("PENDING");
+				order.setOrderType(orderType);
+				order.setTableNumber("Dine-In".equals(orderType) ? tableNumber : null);
+				this.orderServices.saveOrder(order);
+			}
+			session.removeAttribute("cart");
+		}
+		model.addAttribute("amount", totalAmount);
+		model.addAttribute("orderType", orderType);
+		model.addAttribute("tableNumber", tableNumber);
+		return "Order_success";
 	}
 
 	@GetMapping("/logout")
@@ -116,12 +227,36 @@ public class AdminController {
 		List<Admin> admins = this.adminServices.getAll();
 		List<Product> products = this.productServices.getAllProducts();
 		List<Orders> orders = this.orderServices.getOrders();
+		List<TableReservation> tableReservations = this.tableReservationRepository.findAll();
 		model.addAttribute("users", users);
 		model.addAttribute("admins", admins);
 		model.addAttribute("products", products);
 		model.addAttribute("orders", orders);
+		model.addAttribute("tableReservations", tableReservations);
 
 		return "Admin_Page";
+	}
+
+	@GetMapping("/admin/reservation/approve/{id}")
+	@Operation(summary = "Approve Reservation", description = "Approves a table reservation")
+	public String approveReservation(@PathVariable("id") int id) {
+		TableReservation reservation = tableReservationRepository.findById(id).orElse(null);
+		if (reservation != null) {
+			reservation.setStatus("APPROVED");
+			tableReservationRepository.save(reservation);
+		}
+		return "redirect:/admin/services";
+	}
+
+	@GetMapping("/admin/reservation/reject/{id}")
+	@Operation(summary = "Reject Reservation", description = "Rejects a table reservation")
+	public String rejectReservation(@PathVariable("id") int id) {
+		TableReservation reservation = tableReservationRepository.findById(id).orElse(null);
+		if (reservation != null) {
+			reservation.setStatus("REJECTED");
+			tableReservationRepository.save(reservation);
+		}
+		return "redirect:/admin/services";
 	}
 	@GetMapping("/addAdmin")
 	@Operation(summary = "View Add Admin page", description = "Serves the HTML form to create a new administrator account")
@@ -216,4 +351,68 @@ public class AdminController {
 		return "redirect:/dashboard";
 	}
 
+	@GetMapping("/toggleOrderStatus/{id}")
+	@Operation(summary = "Toggle Order Status", description = "Marks an order as prepared/completed or pending")
+	public String toggleOrderStatus(@PathVariable("id") int id, jakarta.servlet.http.HttpSession session) {
+		if (session.getAttribute("loggedInAdmin") == null) {
+			return "redirect:/login";
+		}
+		Orders order = this.orderServices.getOrder(id);
+		if (order != null) {
+			if ("PENDING".equals(order.getStatus())) {
+				order.setStatus("COMPLETED");
+			} else {
+				order.setStatus("PENDING");
+			}
+			this.orderServices.saveOrder(order);
+		}
+		return "redirect:/admin/services#orders";
+	}
+
+	@GetMapping("/kitchen")
+	@Operation(summary = "Kitchen Display System", description = "Shows the live KDS board for kitchen staff")
+	public String kitchenDisplay(Model model, jakarta.servlet.http.HttpSession session) {
+		if (session.getAttribute("loggedInAdmin") == null) {
+			return "redirect:/login";
+		}
+		List<Orders> allOrders = this.orderServices.getOrders();
+		List<Orders> activeOrders = allOrders.stream()
+			.filter(o -> !"READY".equals(o.getStatus()) && !"COMPLETED".equals(o.getStatus()))
+			.collect(java.util.stream.Collectors.toList());
+		model.addAttribute("orders", activeOrders);
+		return "KDS";
+	}
+
+	@GetMapping("/kitchen/advance/{id}")
+	@Operation(summary = "Advance KDS Status", description = "Advances order status: PENDING→RECEIVED→PREPARING→READY")
+	public String advanceKdsStatus(@PathVariable("id") int id, jakarta.servlet.http.HttpSession session) {
+		if (session.getAttribute("loggedInAdmin") == null) {
+			return "redirect:/login";
+		}
+		Orders order = this.orderServices.getOrder(id);
+		if (order != null) {
+			switch (order.getStatus()) {
+				case "PENDING":   order.setStatus("RECEIVED"); break;
+				case "RECEIVED":  order.setStatus("PREPARING"); break;
+				case "PREPARING": order.setStatus("READY"); break;
+				default: break;
+			}
+			this.orderServices.saveOrder(order);
+		}
+		return "redirect:/kitchen";
+	}
+
+	@GetMapping("/kitchen/complete/{id}")
+	@Operation(summary = "Complete KDS Order", description = "Marks an order as COMPLETED and removes it from the KDS")
+	public String completeKdsOrder(@PathVariable("id") int id, jakarta.servlet.http.HttpSession session) {
+		if (session.getAttribute("loggedInAdmin") == null) {
+			return "redirect:/login";
+		}
+		Orders order = this.orderServices.getOrder(id);
+		if (order != null) {
+			order.setStatus("COMPLETED");
+			this.orderServices.saveOrder(order);
+		}
+		return "redirect:/kitchen";
+	}
 }

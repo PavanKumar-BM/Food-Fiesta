@@ -22,6 +22,9 @@ public class Orders
 	private int oQuantity;
 	private Date orderDate;
 	private double totalAmmout;
+	private String status = "PENDING";
+	private String orderType;
+	private String tableNumber;
 	
 	@ManyToOne
 	@JoinColumn(name="user_u_id")
@@ -89,8 +92,30 @@ public class Orders
 	@Override
 	public String toString() {
 		return "Orders [oId=" + oId + ", oName=" + oName + ", oPrice=" + oPrice + ", oQuantity=" + oQuantity
-				+ ", orderDate=" + orderDate + ", totalAmmout=" + totalAmmout + ", user=" + user + "]";
+				+ ", orderDate=" + orderDate + ", totalAmmout=" + totalAmmout + ", status=" + status + ", user=" + user + "]";
 	}
 
+	public String getStatus() {
+		return status;
+	}
 
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
+	public String getOrderType() {
+		return orderType;
+	}
+
+	public void setOrderType(String orderType) {
+		this.orderType = orderType;
+	}
+
+	public String getTableNumber() {
+		return tableNumber;
+	}
+
+	public void setTableNumber(String tableNumber) {
+		this.tableNumber = tableNumber;
+	}
 }

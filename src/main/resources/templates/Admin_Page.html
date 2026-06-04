@@ -23,9 +23,12 @@
             <a href="#users" class="sidebar-link"><i class="fa-solid fa-users"></i> User Accounts</a>
             <a href="#products" class="sidebar-link"><i class="fa-solid fa-utensils"></i> Menu Items</a>
             <a href="#orders" class="sidebar-link"><i class="fa-solid fa-receipt"></i> Order History</a>
+            <a href="#reservations" class="sidebar-link"><i class="fa-solid fa-chair"></i> Reservations</a>
         </nav>
-
-        <div style="border-top: 1px solid var(--outline); padding-top: 24px;">
+        <div style="border-top: 1px solid var(--outline); padding-top: 24px; margin-top: 16px;">
+            <a href="/kitchen" class="sidebar-link" style="background: linear-gradient(135deg, #f97316, #ef4444); color: white; border-radius: 12px; margin-bottom: 8px;">
+                <i class="fa-solid fa-fire"></i> Kitchen Display (KDS)
+            </a>
             <a href="/logout" class="sidebar-link" style="color: #ef4444;">
                 <i class="fa-solid fa-right-from-bracket"></i> Sign Out
             </a>
@@ -187,7 +190,11 @@
                             <th>Dish</th>
                             <th>Quantity</th>
                             <th>Total Amount</th>
+                            <th>Order Type</th>
+                            <th>Table No.</th>
                             <th>Date</th>
+                            <th>Status</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -199,7 +206,70 @@
                             <td th:text="${order.oName}">Dish</td>
                             <td th:text="${order.oQuantity}">1</td>
                             <td style="color: var(--primary); font-weight: 700;" th:text="'₹' + ${order.totalAmmout}">₹300</td>
+                            <td>
+                                <span th:if="${order.orderType == 'Dine-In'}" style="color: #16a34a; background: #dcfce7; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;"><i class="fa-solid fa-utensils"></i> Dine-In</span>
+                                <span th:if="${order.orderType == 'Takeaway'}" style="color: #d97706; background: #fef3c7; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;"><i class="fa-solid fa-bag-shopping"></i> Takeaway</span>
+                                <span th:if="${order.orderType == 'Delivery'}" style="color: #2563eb; background: #dbeafe; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;"><i class="fa-solid fa-motorcycle"></i> Delivery</span>
+                                <span th:if="${order.orderType == null}" style="color: var(--on-surface-variant); font-size: 0.75rem;">—</span>
+                            </td>
+                            <td style="font-weight: 700;" th:text="${order.tableNumber != null ? order.tableNumber : '—'}">—</td>
                             <td style="font-size: 0.75rem; color: var(--on-surface-variant);" th:text="${#dates.format(order.orderDate, 'dd MMM yyyy HH:mm')}">Date</td>
+                            <td>
+                                <span th:if="${order.status == 'PENDING'}" style="color: #ef4444; font-weight: bold; font-size: 0.75rem; text-transform: uppercase;">Pending</span>
+                                <span th:if="${order.status == 'COMPLETED'}" style="color: #22c55e; font-weight: bold; font-size: 0.75rem; text-transform: uppercase;">Completed</span>
+                            </td>
+                            <td>
+                                <a th:href="@{'/toggleOrderStatus/'+${order.oId}}" class="action-btn" th:style="${order.status == 'PENDING' ? 'color: #22c55e; background: #dcfce7;' : 'color: #f59e0b; background: #fef3c7;'}">
+                                    <i class="fa-solid fa-check" th:if="${order.status == 'PENDING'}"></i>
+                                    <i class="fa-solid fa-rotate-left" th:if="${order.status == 'COMPLETED'}"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Reservations Section -->
+        <section id="reservations" class="data-section animate-up" style="animation-delay: 0.5s;">
+            <div class="section-header">
+                <h2><i class="fa-solid fa-chair" style="color: var(--primary);"></i> Table Reservations</h2>
+            </div>
+            <div class="table-container">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Customer</th>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Party Size</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="res : ${tableReservations}">
+                            <td>
+                                <div style="font-weight: 700;" th:text="${res.user.uname}">User</div>
+                                <div style="font-size: 0.75rem; color: var(--on-surface-variant);" th:text="${res.user.uemail}">Email</div>
+                            </td>
+                            <td th:text="${res.reservationDate}">Date</td>
+                            <td th:text="${res.reservationTime}">Time</td>
+                            <td th:text="${res.partySize} + ' People'">Party Size</td>
+                            <td>
+                                <span th:if="${res.status == 'PENDING'}" style="color: #f59e0b; background: #fef3c7; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">Pending</span>
+                                <span th:if="${res.status == 'APPROVED'}" style="color: #22c55e; background: #dcfce7; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">Approved</span>
+                                <span th:if="${res.status == 'REJECTED'}" style="color: #ef4444; background: #fee2e2; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">Rejected</span>
+                            </td>
+                            <td>
+                                <div style="display: flex; gap: 8px;" th:if="${res.status == 'PENDING'}">
+                                    <a th:href="@{'/admin/reservation/approve/'+${res.id}}" class="action-btn" style="color: #22c55e; background: #dcfce7;"><i class="fa-solid fa-check"></i></a>
+                                    <a th:href="@{'/admin/reservation/reject/'+${res.id}}" class="action-btn" style="color: #ef4444; background: #fee2e2;"><i class="fa-solid fa-xmark"></i></a>
+                                </div>
+                                <div th:if="${res.status != 'PENDING'}">
+                                    <span style="font-size: 0.875rem; color: var(--on-surface-variant);"><i class="fa-solid fa-lock"></i> Processed</span>
+                                </div>
+                            </td>
                         </tr>
                     </tbody>
                 </table>

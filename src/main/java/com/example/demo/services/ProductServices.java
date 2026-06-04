@@ -50,6 +50,7 @@ public class ProductServices
 
 	public Product getProductByName(String name)
 	{
+		if (name != null) name = name.trim();
 		List<Product> products = this.productRepository.findByPnameContainingIgnoreCase(name);
 		if(!products.isEmpty())
 		{

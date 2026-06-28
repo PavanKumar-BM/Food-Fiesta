@@ -15,7 +15,7 @@ input{
 	border: none;
 	outline: none;
 	background-color: transparent;
-	border-bottom: 1px darkgreen solid;
+	border-bottom: 1px rgb(4, 93, 4) solid;
 	font-size: 15px;
 	width: 200px;
 	color: aqua;

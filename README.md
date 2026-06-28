@@ -1,6 +1,6 @@
-# Food Fiesta - Spring Boot Fullstack Project
+# DineFlow - Spring Boot Fullstack Project
 
-**Food Fiesta** is a Spring Boot fullstack dining management application built with **Java 21**, **Spring Boot 3.4.2**, **Thymeleaf**, **Spring Security**, **Spring Data JPA**, and **H2** for quick local development.
+**DineFlow** is a Spring Boot fullstack dining management application built with **Java 21**, **Spring Boot 3.4.2**, **Thymeleaf**, **Spring Security**, **Spring Data JPA**, and **H2** for quick local development.
 
 The project can also be configured to use PostgreSQL for deployment or production-style testing.
 
@@ -67,15 +67,16 @@ The project can also be configured to use PostgreSQL for deployment or productio
 
 ## Core Features
 
-- Premium Thymeleaf UI with modern CSS and JavaScript.
-- Role-based admin and customer flows.
-- Product inventory management.
-- User registration and login.
-- Order placement and order history.
-- Spring Data JPA persistence.
-- H2 database for fast local startup.
-- Swagger/OpenAPI documentation.
-- Optional Google OAuth2 login configuration.
+- **Premium Thymeleaf UI**: A modern, responsive dashboard styled with premium custom CSS and custom micro-animations.
+- **Table Reservation System**: Customers can reserve a dining table by specifying the date, time, and party size. Admins can view, approve, or reject reservations in real-time.
+- **Dynamic Shopping Cart**: A fully functional session-based cart system allowing customers to add/remove items and edit quantities before checkout.
+- **Flexible Order Options (Dine-In vs. Delivery)**: Support for delivery orders and table-side dine-in orders with designated table numbers.
+- **Kitchen Display System (KDS)**: Live board for kitchen staff to view active orders and advance them through states: `PENDING` ➔ `RECEIVED` ➔ `PREPARING` ➔ `READY` ➔ `COMPLETED`.
+- **Google OAuth2 Social Login**: Secure authentication flow with Google credentials, complete with automatic new user signup.
+- **Role-Based Authentication**: Custom authorization flows separating administrator back-office controls from customer ordering screens.
+- **Admin Management Console**: Comprehensive management panels supporting full CRUD operations for Products, Users, and Admins, along with reservation approvals.
+- **Spring Data JPA Persistence**: Robust database layer with in-memory H2 database for fast local startup, support for PostgreSQL, and Hibernate ORM.
+- **Swagger/OpenAPI Documentation**: Instant API testing and verification endpoint utilizing OpenAPI specifications.
 
 ---
 
@@ -97,6 +98,7 @@ The project can also be configured to use PostgreSQL for deployment or productio
 ```mermaid
 erDiagram
     USER ||--o{ ORDERS : "places"
+    USER ||--o{ TABLE_RESERVATION : "books"
     USER {
         int u_id PK
         string uname
@@ -124,7 +126,18 @@ erDiagram
         int oQuantity
         date orderDate
         double totalAmmout
+        string status
+        string orderType
+        string tableNumber
         int user_u_id FK
+    }
+    TABLE_RESERVATION {
+        int id PK
+        string reservationDate
+        string reservationTime
+        int partySize
+        string status
+        int user_id FK
     }
 ```
 
@@ -144,8 +157,8 @@ Docker and PostgreSQL are only needed if you choose the PostgreSQL/Docker setup.
 Clone the project:
 
 ```bash
-git clone https://github.com/imrajeevnayan/Food-Fiesta.git
-cd Food-Fiesta
+git clone https://github.com/imrajeevnayan/DineFlow.git
+cd DineFlow
 ```
 
 Run the application:
@@ -254,13 +267,13 @@ spring.security.oauth2.client.registration.google.client-secret=YOUR_CLIENT_SECR
 Build the image:
 
 ```bash
-docker build -t food-fiesta .
+docker build -t dineflow .
 ```
 
 Run with Docker:
 
 ```bash
-docker run -p 8080:8080 --name food-fiesta-app food-fiesta
+docker run -p 8080:8080 --name dineflow-app dineflow
 ```
 
 Run app and PostgreSQL together:
